@@ -1,0 +1,37 @@
+name: Update core submodule
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: '0 3 * * 1' # every Monday at 03:00 UTC (weekly)
+
+permissions:
+  contents: write
+
+jobs:
+  update-core:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update core submodule to latest upstream
+        run: |
+          set -eux
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Ensure we have remotes for submodules
+          git submodule foreach --recursive 'git remote update || true'
+          # Update the 'core' submodule to the latest commit on the branch configured in .gitmodules
+          git submodule update --init --remote core
+
+          if [ -n "$(git status --porcelain)" ]; then
+            git add core
+            git commit -m "chore: update core submodule to latest upstream"
+            git push
+          else
+            echo "core is already up-to-date"
+          fi
